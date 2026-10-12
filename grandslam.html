@@ -554,7 +554,9 @@ document.addEventListener('keydown',e=>{if(e.key!=='Escape')return;
 // ---------- 運営ログイン・ファイル書き出し
 function setConn(st){const el=$('conn');if(!el)return;el.className='conn c-'+st;el.textContent=st==='ok'?'共有中':st==='ng'?'共有エラー':st==='local'?'共有なし（この端末だけ）':'接続中…';}
 async function tryAdmin(pass){
-  try{await FB.ref(ROOM+'_admins/'+UID).set(pass);return true;}catch(e){return false;}
+  // Firebaseの画面で数字だけ入れると「数値」として保存されるので、数字だけのパスコードは数値で送る
+  const v=/^\d+$/.test(pass)?Number(pass):pass;
+  try{await FB.ref(ROOM+'_admins/'+UID).set(v);return true;}catch(e){return false;}
 }
 $('loginBtn').onclick=async()=>{
   const pass=$('loginPass').value.trim();if(!pass)return;
