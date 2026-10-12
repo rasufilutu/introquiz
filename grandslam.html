@@ -1,0 +1,618 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>GRAND SLAM</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Anton&family=Dela+Gothic+One&family=Zen+Kaku+Gothic+New:wght@500;700;900&display=swap">
+<style>
+/* Layout: 操作バー（問題番号・出題中の問題・ジャンル）/ プレイヤーカードのグリッド / 出題済みリスト。配信に映す前提のダーク単一テーマ */
+:root{
+  color-scheme: dark;
+  --bg:#0b0d14; --panel:#141826; --panel2:#1b2032; --line:#2a3048; --fg:#f1f2f7; --muted:#8a90a8; --dim:#3a4058;
+  --gold:#ffcc4d; --gold2:#ff9f1c; --reach:#ff4d6d; --ok:#4fd18b; --op:#6cb6ff;
+  --c-jpop:#ff7eb3; --c-voca:#3fe0d0; --c-anime:#ffa94d; --c-game:#86e36f; --c-classic:#c7a6ff; --c-western:#6cb6ff; --c-other:#e8dcc4;
+  --font-d:"Dela Gothic One","Zen Kaku Gothic New",system-ui,sans-serif;
+  --font-b:"Zen Kaku Gothic New","Hiragino Sans","Yu Gothic",system-ui,sans-serif;
+  --font-l:"Anton","Dela Gothic One",Impact,sans-serif;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{margin:0}
+html,body{height:100%}
+body{background:var(--bg);color:var(--fg);font-family:var(--font-b);font-weight:500;padding-inline:16px;padding-block:14px 40px}
+button{font-family:inherit;color:inherit;cursor:pointer}
+button:focus-visible,textarea:focus-visible,a:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
+a{color:var(--op)}
+.wrap{max-width:1500px;margin:0 auto;display:flex;flex-direction:column;gap:14px}
+
+header{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.logo{font-family:var(--font-l);font-size:clamp(28px,3.4vw,44px);letter-spacing:.06em;line-height:1;background:linear-gradient(180deg,#fff3c4,var(--gold) 45%,var(--gold2));-webkit-background-clip:text;background-clip:text;color:transparent}
+.mode{font-size:12px;font-weight:900;letter-spacing:.1em;padding:3px 10px;border-radius:99px;border:1px solid var(--line);color:var(--muted)}
+.mode.op{color:var(--op);border-color:var(--op)}
+.conn{font-size:12px;font-weight:700;color:var(--muted)}
+.conn::before{content:"●";margin-right:4px}
+.conn.c-ok::before{color:var(--ok)}
+.conn.c-ng{color:var(--reach)}
+.conn.c-ng::before,.conn.c-local::before{color:var(--reach)}
+.tools{margin-left:auto;display:flex;gap:8px;flex-wrap:wrap}
+.btn{border:1px solid var(--line);background:var(--panel);padding:8px 14px;border-radius:8px;font-weight:700;font-size:14px}
+.btn:hover{border-color:var(--muted)}
+.btn:disabled{opacity:.35;cursor:not-allowed}
+.btn.hi{border-color:var(--gold)}
+
+.bar{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px;display:flex;flex-direction:column;gap:12px}
+.row{display:flex;gap:14px;align-items:center;flex-wrap:wrap}
+.qno{font-family:var(--font-d);font-size:26px;white-space:nowrap;font-variant-numeric:tabular-nums}
+.qno span{font-family:var(--font-b);font-size:13px;color:var(--muted)}
+.cur{display:flex;align-items:center;gap:10px;flex-wrap:wrap;min-width:0;flex:1}
+.cur .tag{font-weight:900;font-size:18px;padding:4px 14px;border-radius:99px;background:var(--g);color:#10131c}
+.cur .no{font-family:var(--font-l);font-size:30px;letter-spacing:.04em}
+.cur .ans{font-weight:900;font-size:18px;min-width:0;word-break:break-word}
+.cur .wait{color:var(--muted);font-weight:700}
+.gsel{display:flex;gap:6px;flex-wrap:wrap}
+.gbtn{border:2px solid var(--g);background:transparent;color:var(--g);padding:7px 12px;border-radius:99px;font-weight:900;font-size:15px;display:flex;gap:6px;align-items:baseline}
+.gbtn small{font-size:11px;opacity:.8;font-variant-numeric:tabular-nums}
+.gbtn[aria-pressed="true"]{background:var(--g);color:#10131c;box-shadow:0 0 18px color-mix(in srgb,var(--g) 55%,transparent)}
+.gbtn:disabled{opacity:.3;cursor:not-allowed}
+.hint{color:var(--muted);font-size:13px;font-weight:700}
+.notice{color:var(--reach);font-weight:700;font-size:14px}
+.notice:empty{display:none}
+
+.winbar{border:2px solid var(--gold);border-radius:14px;padding:12px 16px;display:flex;gap:12px;align-items:center;flex-wrap:wrap;background:linear-gradient(90deg,color-mix(in srgb,var(--gold) 14%,var(--panel)),var(--panel))}
+.winbar .k{font-family:var(--font-l);font-size:26px;letter-spacing:.05em;color:var(--gold);line-height:1}
+.winbar .w{font-family:var(--font-d);font-size:22px}
+.winbar .s{color:var(--muted);font-weight:700;font-size:13px}
+
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px}
+.card{background:var(--panel);border:2px solid var(--line);border-radius:16px;padding:14px 16px 16px;display:flex;flex-direction:column;gap:12px;min-width:0;transition:border-color .25s,box-shadow .25s}
+.card.reach{border-color:var(--reach);box-shadow:0 0 0 3px color-mix(in srgb,var(--reach) 22%,transparent)}
+.card.slam{border-color:var(--gold);box-shadow:0 0 0 3px color-mix(in srgb,var(--gold) 30%,transparent),0 0 40px color-mix(in srgb,var(--gold) 25%,transparent);background:linear-gradient(160deg,color-mix(in srgb,var(--gold) 12%,var(--panel)),var(--panel) 55%)}
+.top{display:flex;align-items:flex-start;gap:10px}
+.rank{font-family:var(--font-l);font-size:18px;color:var(--muted);flex:none;padding-top:4px;font-variant-numeric:tabular-nums}
+.name{font-family:var(--font-d);font-size:clamp(20px,1.7vw,26px);line-height:1.2;word-break:break-word;min-width:0;flex:1}
+.count{text-align:right;flex:none}
+.count b{font-family:var(--font-l);font-size:40px;line-height:.9;font-variant-numeric:tabular-nums;display:block}
+.count span{font-size:11px;color:var(--muted);letter-spacing:.14em;font-weight:700}
+.status{min-height:34px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.badge{line-height:1;padding:6px 12px 5px;border-radius:8px}
+.badge.reach{background:var(--reach);color:#fff;font-size:22px;font-family:var(--font-d);animation:beat 1s ease-in-out infinite}
+.badge.slam{font-family:var(--font-l);letter-spacing:.06em;font-size:28px;color:#2a1800;background:linear-gradient(180deg,#fff3c4,var(--gold) 50%,var(--gold2));box-shadow:0 0 22px color-mix(in srgb,var(--gold) 60%,transparent)}
+.need{font-size:13px;color:var(--muted);font-weight:700}
+.need b{color:var(--fg)}
+.progress{font-size:13px;color:var(--muted);font-weight:700;font-variant-numeric:tabular-nums}
+@keyframes beat{50%{transform:scale(1.06)}}
+.chips{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+.chip{position:relative;border:1.5px dashed var(--dim);color:var(--dim);border-radius:8px;padding:8px 4px;font-weight:900;font-size:14px;line-height:1.15;text-align:center;transition:background .3s,color .3s,box-shadow .3s}
+.chip{container-type:inline-size;white-space:nowrap;padding-inline:2px}
+.chip .lb{display:block;font-size:min(14px,17.5cqw);overflow:hidden;text-overflow:clip}
+.gbtn,.btab,.cur .tag,.hcol h3{white-space:nowrap}
+.chip.on{background:var(--g);border:1.5px solid var(--g);color:#10131c;box-shadow:0 0 14px color-mix(in srgb,var(--g) 55%,transparent)}
+.chip.pop{animation:pop .5s ease-out}
+@keyframes pop{0%{transform:scale(1.25);filter:brightness(1.6)}100%{transform:scale(1)}}
+.chip .n{position:absolute;top:-7px;right:-6px;font-size:11px;background:var(--bg);color:var(--fg);border:1px solid var(--line);border-radius:99px;padding:0 6px;font-variant-numeric:tabular-nums}
+.chip:not(.on) .n{display:none}
+.chip.target:not(.on){border-color:var(--g);color:var(--g);border-style:solid}
+.ok{border:0;border-radius:10px;padding:11px;font-size:16px;font-weight:900;background:var(--ok);color:#06210f}
+.ok:disabled{opacity:.3;cursor:not-allowed}
+.empty{color:var(--muted);text-align:center;padding:40px 16px;border:1px dashed var(--line);border-radius:16px}
+
+h2.sec{font-family:var(--font-d);font-weight:400;font-size:18px;margin:8px 0 0}
+.hist{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px}
+.hcol{background:var(--panel);border:1px solid var(--line);border-top:3px solid var(--g);border-radius:10px;padding:10px 12px;min-width:0}
+.hcol h3{margin:0 0 6px;font-size:15px;font-weight:900;color:var(--g);display:flex;justify-content:space-between}
+.hcol h3 small{color:var(--muted);font-variant-numeric:tabular-nums}
+.hcol ol{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:3px;font-size:13px}
+.hcol li{display:flex;gap:6px;min-width:0}
+.hcol li .k{color:var(--muted);flex:none;font-variant-numeric:tabular-nums;width:3.2em}
+.hcol li .t{min-width:0;word-break:break-word}
+.hcol li .by{color:var(--muted);font-size:12px}
+.hcol li.un .t{color:var(--dim)}
+.hcol li.now .k,.hcol li.now .t{color:var(--gold);font-weight:900}
+.log{list-style:none;margin:6px 0 0;padding:0;font-size:13px;color:var(--muted);display:flex;flex-direction:column;gap:3px;max-height:200px;overflow:auto}
+.log b{color:var(--fg)}
+details summary{cursor:pointer;color:var(--muted);font-weight:700;font-size:13px}
+
+.modal{position:fixed;inset:0;background:rgba(0,0,0,.65);display:flex;align-items:center;justify-content:center;padding:16px;z-index:10}
+.sheet{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:22px;width:min(560px,100%);max-height:92vh;overflow:auto;display:flex;flex-direction:column;gap:14px}
+.sheet.wide{width:min(1100px,100%)}
+.sheet h2{font-family:var(--font-d);font-weight:400;margin:0;font-size:22px}
+.sheet p{margin:0;color:var(--muted);font-size:14px}
+.sheet textarea{background:var(--bg);border:1px solid var(--line);color:var(--fg);border-radius:8px;padding:10px;font:inherit;font-size:13px;min-height:200px;resize:vertical;width:100%}
+.btabs{display:flex;gap:6px;flex-wrap:wrap;position:sticky;top:-22px;background:var(--panel);padding-block:8px;z-index:1}
+.btab{border:2px solid var(--g);background:transparent;color:var(--g);padding:7px 14px;border-radius:99px;font-weight:900;font-size:14px;display:flex;gap:6px;align-items:baseline}
+.btab small{font-size:11px;opacity:.85;font-variant-numeric:tabular-nums}
+.btab[aria-selected="true"]{background:var(--g);color:#10131c}
+.blist{display:flex;flex-direction:column;gap:6px;border-top:3px solid var(--g);padding-top:10px}
+.brow{display:grid;grid-template-columns:4.2em minmax(0,1.2fr) minmax(0,1fr) 9em;gap:8px;align-items:center;padding:6px 8px;border-radius:10px;border:1px solid var(--line);background:var(--panel2)}
+.brow .bno{font-family:var(--font-l);font-size:20px;letter-spacing:.03em;font-variant-numeric:tabular-nums;color:var(--g)}
+.brow input{background:var(--bg);border:1px solid var(--line);color:var(--fg);border-radius:7px;padding:8px 9px;font:inherit;font-size:14px;width:100%;min-width:0}
+.brow input:focus-visible{outline:2px solid var(--gold);outline-offset:1px}
+.brow .bst{font-size:12px;font-weight:900;color:var(--muted);line-height:1.3;min-width:0;word-break:break-word}
+.brow.done{background:transparent;border-style:dashed;opacity:.62}
+.brow.done .bst{color:var(--ok)}
+.brow.now{border:2px solid var(--gold);box-shadow:0 0 16px color-mix(in srgb,var(--gold) 40%,transparent);opacity:1}
+.brow.now .bst{color:var(--gold)}
+@media (max-width:640px){.brow{grid-template-columns:3.4em minmax(0,1fr)}.brow input.u,.brow .bst{grid-column:2}}
+.bar.live{border:2px solid var(--g);box-shadow:0 0 0 3px color-mix(in srgb,var(--g) 25%,transparent),0 0 34px color-mix(in srgb,var(--g) 35%,transparent);animation:glow 1.6s ease-in-out infinite}
+@keyframes glow{50%{box-shadow:0 0 0 3px color-mix(in srgb,var(--g) 12%,transparent),0 0 16px color-mix(in srgb,var(--g) 20%,transparent)}}
+.cur .play{font-size:12px;font-weight:900;letter-spacing:.12em;color:var(--g);width:100%}
+.cur .tag{font-size:22px}
+.cur .no{font-size:40px}
+.cur .ans{font-size:24px}
+.cur a.open{background:var(--g);color:#10131c;text-decoration:none;font-weight:900;padding:6px 14px;border-radius:8px}
+.hcol.live{border-color:var(--g);box-shadow:0 0 18px color-mix(in srgb,var(--g) 35%,transparent)}
+.hcol li.now{background:color-mix(in srgb,var(--g) 22%,transparent);border-radius:6px;padding:2px 4px;margin:0 -4px}
+.hcol li.now .k,.hcol li.now .t{color:var(--fg)}
+.foot{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;align-items:center}
+.foot .msg{margin-right:auto;color:var(--ok);font-weight:700;font-size:13px}
+.win{text-align:center;align-items:center;width:min(640px,100%);border-color:var(--gold)}
+.win .big{font-family:var(--font-l);font-size:clamp(46px,9vw,88px);line-height:1;letter-spacing:.05em;background:linear-gradient(180deg,#fff3c4,var(--gold) 45%,var(--gold2));-webkit-background-clip:text;background-clip:text;color:transparent}
+.win .who{font-family:var(--font-d);font-size:clamp(24px,4vw,38px)}
+.standings{width:100%;border-collapse:collapse;font-size:14px;font-variant-numeric:tabular-nums}
+.standings td{padding:5px 8px;border-top:1px solid var(--line);text-align:left}
+.standings td:not(:nth-child(2)){white-space:nowrap}
+@media (max-width:420px){.chips{grid-template-columns:repeat(3,1fr)}}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header>
+    <div class="logo">GRAND SLAM</div>
+    <span class="mode" id="modeTag">読み込み中</span><span class="conn" id="conn">接続中…</span>
+    <div class="tools" id="opTools" hidden>
+      <button class="btn" id="bankBtn">問題リスト</button>
+      <button class="btn" id="playersBtn">プレイヤー</button>
+      <button class="btn" id="undoBtn">↶ 1つ戻す</button>
+      <button class="btn" id="finishBtn">全問終了（判定）</button>
+      <button class="btn" id="resetBtn">リセット</button>
+      <button class="btn" id="previewBtn">参加者画面を確認</button>
+    </div>
+  </header>
+
+  <div class="winbar" id="winbar" hidden></div>
+
+  <div class="bar">
+    <div class="row">
+      <div class="qno" id="qno"></div>
+      <div class="cur" id="cur"></div>
+      <button class="btn" id="noAnsBtn" hidden>正解者なし → 答え発表</button>
+    </div>
+    <div class="gsel" id="gsel" role="group" aria-label="出題ジャンル" hidden></div>
+    <div class="notice" id="notice"></div>
+  </div>
+
+  <div class="grid" id="grid"></div>
+
+  <h2 class="sec">出題済みの問題</h2>
+  <div class="hist" id="hist"></div>
+
+  <details id="logWrap" hidden>
+    <summary>ログ</summary>
+    <ul class="log" id="log"></ul>
+  </details>
+</div>
+
+<div class="modal" id="bankModal" hidden>
+  <div class="sheet wide" role="dialog" aria-labelledby="bTitle">
+    <h2 id="bTitle">問題リスト</h2>
+    <p>ジャンルを選んで、各番号に曲名とURLを入れてね。表計算ソフトから「曲名・URL」の2列をコピーして曲名欄に貼ると、下の行までまとめて入るよ。この中身はこの端末のブラウザにだけ保存されて、参加者には出題済みになった曲名だけが届くよ。</p>
+    <div class="btabs" id="bankTabs" role="tablist"></div>
+    <div class="blist" id="bankList"></div>
+    <div class="foot" style="justify-content:flex-start"><button class="btn" id="addRow">＋ 行を追加</button><button class="btn" id="delRow">最後の行を削除</button></div>
+    <details>
+      <summary>バックアップ（問題リストと試合状況をまとめて保存・復元）</summary>
+      <div style="display:flex;flex-direction:column;gap:8px;margin-top:8px">
+        <p>問題リストはこのブラウザにだけ保存されてる。ブラウザのデータを消したりPCを替えたりする前に、ファイルに書き出しておいてね。</p>
+        <div class="foot" style="justify-content:flex-start"><button class="btn hi" id="exportFile">ファイルに書き出す</button><label class="btn" for="importFile" style="cursor:pointer">ファイルから読み込む</label><input type="file" id="importFile" accept=".json,application/json" hidden></div>
+        <textarea id="backupText" placeholder="ここに復元したいバックアップを貼り付け"></textarea>
+        <div class="foot"><button class="btn" id="copyBackup">今の状態をコピー</button><button class="btn" id="restoreBackup">貼り付けた内容で復元</button></div>
+      </div>
+    </details>
+    <div class="foot"><span class="msg" id="bankMsg"></span><button class="btn" id="bCancel">閉じる</button><button class="btn hi" id="bSave">保存</button></div>
+  </div>
+</div>
+
+<div class="modal" id="playersModal" hidden>
+  <div class="sheet" role="dialog" aria-labelledby="pTitle">
+    <h2 id="pTitle">プレイヤー</h2>
+    <p>1行に1人。名前が同じ人は進行状況を引き継ぐよ。</p>
+    <textarea id="playersInput"></textarea>
+    <div class="foot"><button class="btn" id="pCancel">閉じる</button><button class="btn hi" id="pSave">反映</button></div>
+  </div>
+</div>
+
+<div class="modal" id="confirmModal" hidden>
+  <div class="sheet">
+    <h2 id="cfTitle"></h2>
+    <p id="cfText"></p>
+    <div class="foot"><button class="btn" id="cfNo">やめる</button><button class="btn" id="cfYes" style="border-color:var(--reach)">実行</button></div>
+  </div>
+</div>
+
+<div class="modal" id="loginModal" hidden>
+  <div class="sheet" role="dialog" aria-labelledby="lTitle">
+    <h2 id="lTitle">運営ログイン</h2>
+    <p>Firebaseに設定した運営パスコードを入れてね。一度通れば、このブラウザでは次から自動で入れるよ。</p>
+    <input id="loginPass" type="password" autocomplete="current-password" style="background:var(--bg);border:1px solid var(--line);color:var(--fg);border-radius:8px;padding:10px;font:inherit;width:100%">
+    <div class="foot"><span class="msg" id="loginMsg" style="color:var(--reach)"></span><a class="btn" href="./grandslam.html" onclick="location.hash='';location.reload();return false;" style="text-decoration:none;color:var(--fg)">参加者画面へ</a><button class="btn hi" id="loginBtn">ログイン</button></div>
+  </div>
+</div>
+
+<div class="modal" id="winModal" hidden>
+  <div class="sheet win">
+    <div class="big" id="winBig">GRAND SLAM</div>
+    <div class="who" id="winWho"></div>
+    <p id="winSub"></p>
+    <table class="standings" id="winTable"></table>
+    <div class="foot" style="justify-content:center"><button class="btn" id="winClose">閉じる</button></div>
+  </div>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-database-compat.js"></script>
+<script>
+/* ★★★ Firebase設定（introquizと同じプロジェクト）★★★ */
+const FIREBASE_CONFIG = {
+  apiKey: "AIzaSyBU9krM9pIejozJVgkBnFrn4gSvvXKwQ_Q",
+  authDomain: "sabitoro-66b26.firebaseapp.com",
+  databaseURL: "https://sabitoro-66b26-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "sabitoro-66b26",
+  storageBucket: "sabitoro-66b26.firebasestorage.app",
+  messagingSenderId: "520013762878",
+  appId: "1:520013762878:web:0cce7d6262d4623a475c6f"
+};
+/* 別の大会で使い回す時はここを変える（例："grandslam2"）。Firebaseのルールも同じ名前に合わせてね */
+const ROOM = "grandslam";
+</script>
+<script>
+(function(){
+const GENRES=[
+  {id:'jpop',name:'JPOP',c:'--c-jpop'},
+  {id:'voca',name:'ボカロ',c:'--c-voca'},
+  {id:'anime',name:'アニソン',c:'--c-anime'},
+  {id:'game',name:'ゲーム音楽',c:'--c-game'},
+  {id:'classic',name:'クラシック',c:'--c-classic'},
+  {id:'western',name:'洋楽',c:'--c-western'},
+  {id:'other',name:'その他',c:'--c-other'},
+];
+const GN=Object.fromEntries(GENRES.map(g=>[g.id,g.name]));
+const GC=Object.fromEntries(GENRES.map(g=>[g.id,g.c]));
+const DEFAULT_COUNT=15;
+const $=id=>document.getElementById(id);
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const clone=o=>JSON.parse(JSON.stringify(o));
+
+const blankG=()=>Object.fromEntries(GENRES.map(g=>[g.id,0]));
+const mkPlayer=name=>({name,g:blankG()});
+const blankUsed=()=>Object.fromEntries(GENRES.map(g=>[g.id,{}]));
+const blankBank=()=>Object.fromEntries(GENRES.map(g=>[g.id,[]]));
+function freshGame(players,sizes){return {sizes:sizes||null,players:players||['プレイヤーA','プレイヤーB','プレイヤーC','プレイヤーD'].map(mkPlayer),q:1,cur:null,used:blankUsed(),ended:false,endReason:null,winner:null,log:[]};}
+function normGame(g){g=g||freshGame();const uu=blankUsed();GENRES.forEach(x=>{const src=(g.used||{})[x.id]||{};Object.keys(src).forEach(k=>{if(src[k])uu[x.id][/^n/.test(k)?k:'n'+k]=src[k];});});g.used=uu;g.cur=g.cur||null;g.q=g.q||1;g.ended=!!g.ended;g.endReason=g.endReason||null;g.winner=g.winner||null;g.players=(g.players||[]).map(p=>({name:p.name,g:Object.assign(blankG(),p.g||{})}));g.log=g.log||[];return g;}
+
+// ---------- state
+let G=freshGame(), BANK=blankBank();
+let isOp=false, preview=false, db=null, history=[], popKey=null, notice='', lastEnded=null;
+
+// ---------- storage
+// 試合状況 → Firebase（参加者に配信）。問題リスト → この端末のブラウザだけ（Firebaseには上げない）
+const LKEY='grand-slam-fb-v1';
+function localLoad(){try{const d=JSON.parse(localStorage.getItem(LKEY));if(d)return d;}catch(e){}return null;}
+function localSave(){try{localStorage.setItem(LKEY,JSON.stringify({game:G,bank:BANK}));}catch(e){}}
+async function saveGame(){
+  localSave();
+  if(!FB||!isOp)return;
+  try{await FB.ref(ROOM+'/game').set(clone(G));setConn('ok');}
+  catch(e){setConn('ng');notice='共有に失敗したよ（'+(e&&e.code||e&&e.message||'error')+'）。ネット接続か運営ログインを確認してね';render();}
+}
+async function saveBank(){localSave();return true;}
+
+// ---------- rules
+const total=p=>GENRES.reduce((a,g)=>a+(p.g[g.id]||0),0);
+const lit=p=>GENRES.filter(g=>p.g[g.id]>0).length;
+const missing=p=>GENRES.filter(g=>!p.g[g.id]);
+const genreSize=gid=>(G.sizes&&G.sizes[gid])||(BANK[gid]&&BANK[gid].length)||DEFAULT_COUNT;
+const usedCount=gid=>Object.keys(G.used[gid]||{}).length;
+const remaining=gid=>genreSize(gid)-usedCount(gid);
+const allUsed=()=>GENRES.every(g=>remaining(g.id)<=0);
+// 順位：点灯ジャンル数 → 正解数。両方同じなら同順位
+function standings(){
+  const arr=G.players.map(p=>({p,l:lit(p),t:total(p)})).sort((a,b)=>b.l-a.l||b.t-a.t);
+  let r=0;arr.forEach((x,i)=>{if(i===0||x.l!==arr[i-1].l||x.t!==arr[i-1].t)r=i+1;x.rank=r;});
+  return arr;
+}
+function nextNo(gid){const n=genreSize(gid);for(let i=1;i<=n;i++)if(!G.used[gid]['n'+i])return i;return null;}
+const titleOf=(gid,no)=>(BANK[gid]&&BANK[gid][no-1]&&BANK[gid][no-1].t)||'';
+const urlOf=(gid,no)=>(BANK[gid]&&BANK[gid][no-1]&&BANK[gid][no-1].u)||'';
+
+function snap(){history.push(JSON.stringify(G));if(history.length>300)history.shift();}
+function addLog(h){G.log.unshift(`<b>第${G.q}問</b> ${h}`);if(G.log.length>120)G.log.pop();}
+function commit(){notice='';saveGame();render();}
+
+function selectGenre(gid){
+  if(!isOp)return;
+  if(G.cur&&G.cur.g===gid){snap();G.cur=null;commit();return;}
+  const no=nextNo(gid);if(!no){notice=GN[gid]+'はもう全部出題済みだよ';render();return;}
+  snap();G.cur={g:gid,no};commit();
+}
+function pickNo(gid,no){if(!isOp||G.used[gid]['n'+no])return;snap();G.cur={g:gid,no};commit();}
+function resolve(pi){
+  if(!isOp||!G.cur)return;
+  const {g,no}=G.cur;snap();
+  const t=titleOf(g,no);
+  let slam=false;
+  if(pi!=null){
+    const p=G.players[pi];const wasLit=p.g[g]>0;p.g[g]++;
+    popKey=wasLit?null:pi+':'+g;
+    G.used[g]['n'+no]={t,by:p.name,q:G.q};
+    addLog(`<b>${esc(p.name)}</b> ${GN[g]} No.${no} 正解${t?'（'+esc(t)+'）':''}`);
+    if(!G.ended&&lit(p)===GENRES.length){G.ended=true;G.endReason='slam';G.winner=p.name;slam=true;addLog(`<b>${esc(p.name)}</b> GRAND SLAM 達成`);}
+  }else{
+    G.used[g]['n'+no]={t,by:'',q:G.q};
+    addLog(`${GN[g]} No.${no} 正解者なし${t?'（'+esc(t)+'）':''}`);
+  }
+  G.q++;G.cur=null;
+  if(!G.ended&&allUsed())decide('auto');
+  commit();
+}
+function decide(kind){
+  const st=standings();if(!st.length)return;
+  const top=st.filter(x=>x.rank===1);
+  G.ended=true;G.endReason=top.length>1?'tie':'rank';G.winner=top.map(x=>x.p.name).join(' / ');
+  addLog(`${kind==='auto'?'全問出題完了':'全問終了'} → 判定：<b>${esc(G.winner)}</b>${top.length>1?'（同点優勝）':''}`);
+}
+function undo(){const h=history.pop();if(!h)return;G=JSON.parse(h);commit();}
+
+// ---------- render
+function render(){
+  const op=isOp&&!preview;
+  $('modeTag').textContent=isOp?(preview?'参加者画面プレビュー':'運営'):'参加者';
+  $('modeTag').className='mode'+(op?' op':'');
+  $('opTools').hidden=!isOp;
+  $('opTools').querySelectorAll('.btn').forEach(b=>{if(b.id!=='previewBtn')b.hidden=preview;});
+  $('previewBtn').textContent=preview?'運営画面に戻る':'参加者画面を確認';
+  $('qno').innerHTML=`<span>第</span>${G.q}<span>問</span>`;
+
+  // 出題中
+  const cur=$('cur');
+  if(G.cur){
+    const {g,no}=G.cur,t=titleOf(g,no),u=urlOf(g,no);
+    cur.innerHTML=`<span class="play">${op?'▶ この曲を流してね':'▶ 出題中'}</span><span class="tag">${GN[g]}</span><span class="no">No.${no}</span>`+
+      (op?`<span class="ans">${t?esc(t):'<span class="wait">（曲名未登録）</span>'}</span>${u?`<a class="open" href="${esc(u)}" target="_blank" rel="noopener">曲を開く ↗</a>`:''}`:'');
+  }else cur.innerHTML=`<span class="wait">${op?'参加者が選んだジャンルを押してね':'ジャンル選択中…'}</span>`;
+  const bar=document.querySelector('.bar');
+  bar.classList.toggle('live',!!G.cur);
+  if(G.cur)bar.style.setProperty('--g',`var(${GC[G.cur.g]})`);else bar.style.removeProperty('--g');
+  $('noAnsBtn').hidden=!(op&&G.cur);
+
+  const gs=$('gsel');gs.hidden=!op;
+  if(op){
+    gs.innerHTML=GENRES.map(g=>{const r=remaining(g.id);return `<button class="gbtn" style="--g:var(${g.c})" data-g="${g.id}" aria-pressed="${!!(G.cur&&G.cur.g===g.id)}" ${r<=0?'disabled':''}>${g.name}<small>残${Math.max(0,r)}</small></button>`;}).join('');
+    gs.querySelectorAll('.gbtn').forEach(b=>b.onclick=()=>selectGenre(b.dataset.g));
+  }
+  $('notice').textContent=notice;
+
+  // 勝者バー
+  const wb=$('winbar');
+  if(G.ended){
+    wb.hidden=false;
+    const label=G.endReason==='slam'?'GRAND SLAM':G.endReason==='tie'?'同点優勝':'WINNER';
+    const sub=G.endReason==='slam'?'7ジャンル制覇で勝利':'GRAND SLAM達成者なし・点灯ジャンル数→正解数で判定';
+    wb.innerHTML=`<span class="k">${label}</span><span class="w">${esc(G.winner)}</span><span class="s">${sub}</span>`;
+  }else wb.hidden=true;
+
+  // プレイヤー
+  const st=standings();const rankOf=new Map(st.map(x=>[x.p,x.rank]));
+  const grid=$('grid');
+  if(!G.players.length)grid.innerHTML=`<div class="empty">${op?'「プレイヤー」から参加者を追加してね':'参加者の準備中…'}</div>`;
+  else grid.innerHTML=G.players.map((p,pi)=>{
+    const n=lit(p),isSlam=n===GENRES.length,isReach=n===GENRES.length-1,miss=missing(p);
+    const badge=isSlam?'<span class="badge slam">GRAND SLAM</span>'
+      :isReach?`<span class="badge reach">リーチ!</span><span class="need">あと <b>${miss[0].name}</b></span>`
+      :`<span class="progress">${n} / 7 ジャンル</span>`;
+    const chips=GENRES.map(g=>{const on=p.g[g.id]>0;
+      return `<div class="chip${on?' on':''}${popKey===pi+':'+g.id?' pop':''}${G.cur&&G.cur.g===g.id?' target':''}" style="--g:var(${g.c})"><span class="lb">${g.name}</span><span class="n">${p.g[g.id]}</span></div>`;}).join('');
+    return `<article class="card${isSlam?' slam':isReach?' reach':''}">
+      <div class="top"><span class="rank">${rankOf.get(p)}位</span><div class="name">${esc(p.name)}</div><div class="count"><b>${total(p)}</b><span>正解数</span></div></div>
+      <div class="status">${badge}</div>
+      <div class="chips">${chips}</div>
+      ${op?`<button class="ok" data-p="${pi}" ${G.cur?'':'disabled'}>○ 正解${G.cur?`（${GN[G.cur.g]} No.${G.cur.no}）`:''}</button>`:''}
+    </article>`;}).join('');
+  popKey=null;
+  grid.querySelectorAll('.ok').forEach(b=>b.onclick=()=>resolve(+b.dataset.p));
+
+  // 出題済みリスト
+  $('hist').innerHTML=GENRES.map(g=>{
+    const n=genreSize(g.id);let li='';
+    for(let no=1;no<=n;no++){
+      const u=G.used[g.id]['n'+no],now=G.cur&&G.cur.g===g.id&&G.cur.no===no;
+      if(u)li+=`<li><span class="k">No.${no}</span><span class="t">${u.t?esc(u.t):'（曲名未登録）'} <span class="by">${u.by?'… '+esc(u.by):'… 正解者なし'}</span></span></li>`;
+      else if(now)li+=`<li class="now"><span class="k">No.${no}</span><span class="t">出題中</span></li>`;
+      else if(op)li+=`<li class="un"><span class="k">No.${no}</span><span class="t"><button class="btn" style="padding:0 6px;font-size:12px" data-g="${g.id}" data-no="${no}">${esc(titleOf(g.id,no))||'未出題'}</button></span></li>`;
+      else li+=`<li class="un"><span class="k">No.${no}</span><span class="t">―</span></li>`;
+    }
+    return `<section class="hcol${G.cur&&G.cur.g===g.id?' live':''}" style="--g:var(${g.c})"><h3>${g.name}<small>${usedCount(g.id)}/${n}</small></h3><ol>${li}</ol></section>`;
+  }).join('');
+  $('hist').querySelectorAll('button[data-no]').forEach(b=>b.onclick=()=>pickNo(b.dataset.g,+b.dataset.no));
+
+  $('logWrap').hidden=!op;
+  $('log').innerHTML=G.log.map(l=>`<li>${l}</li>`).join('')||'<li>まだ記録はないよ</li>';
+  $('undoBtn').disabled=!history.length;
+  $('finishBtn').disabled=G.ended||!G.players.length;
+
+  if(lastEnded===false&&G.ended)showWin();
+  lastEnded=G.ended;
+}
+function showWin(){
+  const st=standings();
+  $('winBig').textContent=G.endReason==='slam'?'GRAND SLAM':G.endReason==='tie'?'同点優勝':'WINNER';
+  $('winWho').textContent=G.winner;
+  $('winSub').textContent=G.endReason==='slam'?'7ジャンル制覇！':'GRAND SLAM達成者なし・点灯ジャンル数 → 正解数で判定';
+  $('winTable').innerHTML=st.map(x=>`<tr><td>${x.rank}位</td><td>${esc(x.p.name)}</td><td>${x.l}/7ジャンル</td><td>${x.t}問正解</td></tr>`).join('');
+  $('winModal').hidden=false;
+}
+
+// ---------- operator controls
+$('noAnsBtn').onclick=()=>resolve(null);
+$('undoBtn').onclick=undo;
+$('previewBtn').onclick=()=>{preview=!preview;render();};
+let cfAction=null;
+function ask(t,x,fn){$('cfTitle').textContent=t;$('cfText').textContent=x;cfAction=fn;$('confirmModal').hidden=false;}
+$('cfNo').onclick=()=>{$('confirmModal').hidden=true;};
+$('cfYes').onclick=()=>{$('confirmModal').hidden=true;cfAction&&cfAction();};
+$('finishBtn').onclick=()=>ask('全問終了にして判定する？','点灯ジャンル数が多い人 → 同じなら正解数が多い人 → それでも同じなら同点優勝、で決めるよ。',()=>{snap();G.cur=null;decide('manual');commit();});
+$('resetBtn').onclick=()=>ask('試合をリセットする？','点灯・正解数・問題番号・出題済み記録・ログが最初に戻るよ。プレイヤー名と問題リストはそのまま。',()=>{snap();G=freshGame(G.players.map(p=>mkPlayer(p.name)),G.sizes);commit();});
+$('playersBtn').onclick=()=>{$('playersInput').value=G.players.map(p=>p.name).join('\n');$('playersModal').hidden=false;};
+$('pCancel').onclick=()=>{$('playersModal').hidden=true;};
+$('pSave').onclick=()=>{
+  const names=$('playersInput').value.split('\n').map(s=>s.trim()).filter(Boolean);
+  snap();G.players=names.map(n=>G.players.find(p=>p.name===n)||mkPlayer(n));
+  $('playersModal').hidden=true;commit();
+};
+
+// 問題リスト
+function parseLines(txt){
+  return txt.split('\n').map(s=>s.trim()).filter(Boolean).map(line=>{
+    const m=line.match(/^(.*?)[\s,|、]*(https?:\/\/\S+)\s*$/);
+    return m?{t:m[1].trim(),u:m[2]}:{t:line,u:''};
+  });
+}
+let draft=null,bankTab='jpop',bankDirty=false;
+function openBank(){
+  draft=Object.fromEntries(GENRES.map(g=>{const n=Math.max(genreSize(g.id),(BANK[g.id]||[]).length,1);
+    return [g.id,Array.from({length:n},(_,i)=>({t:(BANK[g.id]&&BANK[g.id][i]&&BANK[g.id][i].t)||'',u:(BANK[g.id]&&BANK[g.id][i]&&BANK[g.id][i].u)||''}))];}));
+  if(G.cur)bankTab=G.cur.g;
+  bankDirty=false;$('bankMsg').textContent='';renderBank();$('bankModal').hidden=false;
+}
+function renderBankTabs(){
+  $('bankTabs').innerHTML=GENRES.map(g=>{const rows=draft[g.id],filled=rows.filter(r=>r.t).length;
+    return `<button class="btab" role="tab" style="--g:var(${g.c})" data-g="${g.id}" aria-selected="${bankTab===g.id}">${g.name}<small>${filled}/${rows.length}</small></button>`;}).join('');
+  $('bankTabs').querySelectorAll('.btab').forEach(b=>b.onclick=()=>{bankTab=b.dataset.g;renderBank();});
+}
+function renderBank(){
+  renderBankTabs();
+  const gid=bankTab,rows=draft[gid],list=$('bankList');
+  list.style.setProperty('--g',`var(${GC[gid]})`);
+  list.innerHTML=rows.map((r,i)=>{const no=i+1,u=G.used[gid]['n'+no],now=G.cur&&G.cur.g===gid&&G.cur.no===no;
+    const st=now?'▶ 出題中':u?`✓ 出題済<br>${u.by?esc(u.by)+' 正解':'正解者なし'}`:'未出題';
+    return `<div class="brow${u?' done':''}${now?' now':''}"><span class="bno">No.${no}</span>
+      <input class="t" data-i="${i}" placeholder="曲名" value="${esc(r.t)}" aria-label="No.${no} 曲名">
+      <input class="u" data-i="${i}" placeholder="https://" value="${esc(r.u)}" aria-label="No.${no} URL">
+      <span class="bst">${st}</span></div>`;}).join('');
+  list.querySelectorAll('input').forEach(inp=>{
+    inp.oninput=()=>{rows[+inp.dataset.i][inp.classList.contains('t')?'t':'u']=inp.value;bankDirty=true;$('bankMsg').textContent='未保存の変更があるよ';renderBankTabs();};
+    if(inp.classList.contains('t'))inp.onpaste=e=>{
+      const txt=(e.clipboardData||window.clipboardData).getData('text');
+      if(!/[\n\t]/.test(txt))return;
+      e.preventDefault();
+      const lines=txt.replace(/\r/g,'').split('\n').filter((l,k,a)=>l.trim()||k<a.length-1);
+      let i=+inp.dataset.i;
+      lines.forEach(l=>{if(!l.trim())return;const c=l.split('\t');let t=c[0].trim(),u=(c[1]||'').trim();
+        if(!u){const m=parseLines(l)[0];t=m.t;u=m.u;}
+        while(rows.length<=i)rows.push({t:'',u:''});rows[i]={t,u};i++;});
+      bankDirty=true;$('bankMsg').textContent='未保存の変更があるよ';renderBank();
+    };
+  });
+}
+$('addRow').onclick=()=>{draft[bankTab].push({t:'',u:''});bankDirty=true;renderBank();};
+$('delRow').onclick=()=>{const rows=draft[bankTab],n=rows.length;
+  if(n<=1)return;if(G.used[bankTab]['n'+n]||(G.cur&&G.cur.g===bankTab&&G.cur.no===n)){$('bankMsg').textContent='最後の行は出題済みだから消せないよ';return;}
+  rows.pop();bankDirty=true;renderBank();};
+$('bankBtn').onclick=openBank;
+$('bCancel').onclick=()=>{
+  if(bankDirty){ask('保存せずに閉じる？','入力した内容は保存されないよ。',()=>{$('bankModal').hidden=true;});return;}
+  $('bankModal').hidden=true;};
+$('bSave').onclick=async()=>{
+  const nb=blankBank();GENRES.forEach(g=>nb[g.id]=draft[g.id].map(r=>({t:r.t.trim(),u:r.u.trim()})));
+  BANK=nb;G.sizes=Object.fromEntries(GENRES.map(g=>[g.id,nb[g.id].length||DEFAULT_COUNT]));saveGame();
+  const ok=await saveBank();bankDirty=!ok;
+  $('bankMsg').textContent=ok?'保存したよ':'';render();
+};
+$('copyBackup').onclick=async()=>{
+  const txt=JSON.stringify({bank:BANK,game:G});
+  $('backupText').value=txt;
+  try{await navigator.clipboard.writeText(txt);$('bankMsg').textContent='コピーしたよ。メモ帳などに貼って保管してね';}
+  catch(e){$('backupText').select();$('bankMsg').textContent='下の欄を選択したから、Ctrl+Cでコピーしてね';}
+};
+$('restoreBackup').onclick=()=>{
+  let d;try{d=JSON.parse($('backupText').value);}catch(e){$('bankMsg').textContent='';notice='';$('backupText').focus();$('bankMsg').textContent='バックアップの形式が読めなかったよ';return;}
+  ask('バックアップで上書きする？','今の問題リストと試合状況が、貼り付けた内容に置き換わるよ。',async()=>{
+    snap();if(d.bank)BANK=Object.assign(blankBank(),d.bank);if(d.game)G=normGame(d.game);
+    await saveBank();commit();$('bankModal').hidden=true;
+  });
+};
+$('winClose').onclick=()=>{$('winModal').hidden=true;};
+document.addEventListener('keydown',e=>{if(e.key!=='Escape')return;
+  if(!$('confirmModal').hidden){$('confirmModal').hidden=true;return;}
+  ['playersModal','winModal'].forEach(id=>$(id).hidden=true);
+  if(!$('bankModal').hidden)$('bCancel').click();});
+
+// ---------- 運営ログイン・ファイル書き出し
+function setConn(st){const el=$('conn');if(!el)return;el.className='conn c-'+st;el.textContent=st==='ok'?'共有中':st==='ng'?'共有エラー':st==='local'?'共有なし（この端末だけ）':'接続中…';}
+async function tryAdmin(pass){
+  try{await FB.ref(ROOM+'_admins/'+UID).set(pass);return true;}catch(e){return false;}
+}
+$('loginBtn').onclick=async()=>{
+  const pass=$('loginPass').value.trim();if(!pass)return;
+  $('loginMsg').textContent='確認中…';
+  if(await tryAdmin(pass)){
+    try{localStorage.setItem(LKEY+'-pass',pass);}catch(e){}
+    $('loginModal').hidden=true;await enterOp();
+  }else $('loginMsg').textContent='パスコードが違うか、Firebaseの設定がまだみたい';
+};
+$('loginPass').onkeydown=e=>{if(e.key==='Enter')$('loginBtn').click();};
+$('exportFile').onclick=()=>{
+  const blob=new Blob([JSON.stringify({bank:BANK,game:G},null,1)],{type:'application/json'});
+  const a=document.createElement('a');const d=new Date();
+  a.href=URL.createObjectURL(blob);a.download=`grandslam-${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}-${String(d.getHours()).padStart(2,'0')}${String(d.getMinutes()).padStart(2,'0')}.json`;
+  document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),2000);
+  $('bankMsg').textContent='ファイルに書き出したよ';
+};
+$('importFile').onchange=async e=>{
+  const f=e.target.files[0];if(!f)return;
+  const txt=await f.text();e.target.value='';
+  $('backupText').value=txt;$('restoreBackup').click();
+};
+
+// ---------- boot
+const FB=(()=>{try{if(!FIREBASE_CONFIG.databaseURL||!window.firebase)return null;firebase.initializeApp(FIREBASE_CONFIG);return firebase.database();}catch(e){return null;}})();
+let UID=null;
+const wantOp=location.hash.replace('#','')==='admin';
+
+async function enterOp(){
+  isOp=true;
+  // Firebase上の試合状況があればそれを優先（別PCから続ける時用）。無ければこの端末の保存を使う
+  try{const s=await FB.ref(ROOM+'/game').get();if(s.exists())G=normGame(s.val());}catch(e){}
+  history=[];lastEnded=G.ended;setConn('ok');render();saveGame();
+}
+function enterViewer(){
+  isOp=false;G=freshGame([]);BANK=blankBank();lastEnded=null;render();
+  if(!FB){setConn('ng');notice='共有に接続できないよ。ページを開き直してみて';render();return;}
+  let first=true;
+  FB.ref(ROOM+'/game').on('value',s=>{
+    setConn('ok');
+    if(!s.exists()){G=freshGame([]);first=false;render();return;}
+    G=normGame(s.val());if(first){lastEnded=G.ended;first=false;}render();
+  },()=>{setConn('ng');notice='接続が切れたよ。ページを開き直してね';render();});
+}
+
+(async()=>{
+  const local=localLoad();
+  if(wantOp){
+    if(local){G=normGame(local.game);BANK=Object.assign(blankBank(),local.bank||{});}
+    if(!FB){isOp=true;lastEnded=G.ended;setConn('local');render();return;}
+    try{const cred=await firebase.auth().signInAnonymously();UID=cred.user.uid;}
+    catch(e){isOp=true;lastEnded=G.ended;setConn('ng');notice='運営ログインに失敗したよ（Firebaseの匿名ログインが有効か確認してね）';render();return;}
+    let pass=null;try{pass=localStorage.getItem(LKEY+'-pass');}catch(e){}
+    if(pass&&await tryAdmin(pass)){await enterOp();return;}
+    isOp=false;lastEnded=G.ended;render();$('loginModal').hidden=false;setTimeout(()=>$('loginPass').focus(),50);
+  }else enterViewer();
+})();
+})();
+</script>
+</body>
+</html>
