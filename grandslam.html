@@ -606,7 +606,9 @@ function enterViewer(){
     if(local){G=normGame(local.game);BANK=Object.assign(blankBank(),local.bank||{});}
     if(!FB){isOp=true;lastEnded=G.ended;setConn('local');render();return;}
     try{const cred=await firebase.auth().signInAnonymously();UID=cred.user.uid;}
-    catch(e){isOp=true;lastEnded=G.ended;setConn('ng');notice='運営ログインに失敗したよ（Firebaseの匿名ログインが有効か確認してね）';render();return;}
+    catch(e){isOp=false;lastEnded=G.ended;setConn('ng');render();
+      $('loginModal').hidden=false;$('loginBtn').disabled=true;
+      $('loginMsg').textContent='Firebaseの匿名ログインが使えない状態だよ（'+(e&&e.code||'error')+'）。Authentication → Sign-in method で「匿名」を有効にしてから開き直してね';return;}
     let pass=null;try{pass=localStorage.getItem(LKEY+'-pass');}catch(e){}
     if(pass&&await tryAdmin(pass)){await enterOp();return;}
     isOp=false;lastEnded=G.ended;render();$('loginModal').hidden=false;setTimeout(()=>$('loginPass').focus(),50);
